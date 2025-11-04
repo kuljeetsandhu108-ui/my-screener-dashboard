@@ -1,18 +1,25 @@
 <?php
 /**
  * The Front-End Dashboard for the Standalone Screener Application.
- * This script is the public web page. It is designed to be extremely fast.
- * It reads pre-calculated JSON data from the cache and renders it.
+ * FINAL PROFESSIONAL VERSION: This script is a lightweight, high-performance renderer.
+ * It reads pre-calculated JSON data from the cache and displays it.
  * It makes NO API calls.
  *
- * @since      1.0.0 (Standalone)
+ * @since      1.1.0 (Standalone)
  */
 date_default_timezone_set('UTC');
 
+/**
+ * A helper function to safely read and decode a JSON cache file.
+ * @param string $filename The name of the cache file (e.g., 'magic_formula.json').
+ * @return array The decoded data or an empty array if the file doesn't exist.
+ */
 function read_cache_file($filename) {
     $filepath = __DIR__ . '/cache/' . $filename;
     if (file_exists($filepath)) {
-        return json_decode(file_get_contents($filepath), true);
+        // Suppress errors in case of a malformed JSON file during write.
+        $data = @json_decode(file_get_contents($filepath), true);
+        return is_array($data) ? $data : [];
     }
     return [];
 }
@@ -26,7 +33,7 @@ $live_quotes = read_cache_file('live_quotes.json');
 // Get the last modified time of a cache file to show when data was last updated.
 $cache_file_path = __DIR__ . '/cache/magic_formula.json';
 $last_updated = file_exists($cache_file_path) ? filemtime($cache_file_path) : null;
-$last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T', $last_updated) : 'Data is being generated. Please check back soon.';
+$last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T', $last_updated) : 'Data is being generated. Please run the worker and check back soon.';
 
 ?>
 <!DOCTYPE html>
@@ -36,7 +43,6 @@ $last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Investment Screener Dashboard</title>
     <style>
-        /* All the CSS from our prototype goes here */
         :root {
             --bg-color: #1a1a2e; --surface-color: #16213e; --primary-color: #0f3460;
             --accent-color: #537895; --text-color: #e3e3e3; --text-muted-color: #a0a0a0;
@@ -46,7 +52,7 @@ $last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T
         .dashboard-container { max-width: 1200px; margin: 0 auto; padding: 20px; background-color: var(--surface-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
         header { border-bottom: 1px solid var(--primary-color); padding-bottom: 15px; margin-bottom: 25px; }
         header h1 { margin: 0; color: #fff; font-size: 1.8em; }
-        header p { margin: 5px 0 0 0; color: var(--text-muted-color); }
+        header p { margin: 5px 0 0 0; color: var(--text-muted-color); font-style: italic; }
         .tabs { display: flex; gap: 10px; border-bottom: 2px solid var(--primary-color); }
         .tab-link { padding: 12px 25px; cursor: pointer; border: none; background-color: transparent; color: var(--text-muted-color); font-size: 1.1em; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.2s ease-in-out; }
         .tab-link:hover { color: #fff; }
@@ -64,6 +70,7 @@ $last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T
         .screener-table td:first-child, .screener-table th:first-child { font-weight: bold; }
         .positive-change { color: var(--positive-color); }
         .negative-change { color: var(--negative-color); }
+        .no-data-message { padding: 40px; text-align: center; color: var(--text-muted-color); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
@@ -83,9 +90,11 @@ $last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T
             </div>
 
             <div class="tab-content-container">
+                
+                <!-- Magic Formula Table -->
                 <div id="content-magic_formula" class="tab-content active">
                     <?php if (empty($magic_formula_data)): ?>
-                        <p>No Magic Formula data available. The background worker may not have run yet.</p>
+                        <p class="no-data-message">No Magic Formula data available. Please run the background worker to generate results.</p>
                     <?php else: ?>
                         <div class="screener-wrapper">
                             <table class="screener-table">
@@ -114,9 +123,10 @@ $last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T
                     <?php endif; ?>
                 </div>
 
+                <!-- Piotroski Scan Table -->
                 <div id="content-piotroski" class="tab-content">
                      <?php if (empty($piotroski_data)): ?>
-                        <p>No high-scoring Piotroski stocks found. The background worker may not have run yet.</p>
+                        <p class="no-data-message">No high-scoring Piotroski stocks were found. Please run the background worker to generate results.</p>
                     <?php else: ?>
                         <div class="screener-wrapper">
                             <table class="screener-table">
@@ -144,9 +154,10 @@ $last_updated_string = $last_updated ? 'Data last updated: ' . date('Y-m-d H:i T
                     <?php endif; ?>
                 </div>
 
+                <!-- Value Scan Table -->
                 <div id="content-value_scan" class="tab-content">
                     <?php if (empty($value_scan_data)): ?>
-                        <p>No stocks met the Graham Value criteria. The background worker may not have run yet.</p>
+                        <p class="no-data-message">No stocks met the Graham Value criteria. Please run the background worker to generate results.</p>
                     <?php else: ?>
                         <div class="screener-wrapper">
                             <table class="screener-table">
